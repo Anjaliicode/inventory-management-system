@@ -1,0 +1,9 @@
+.navbar{
+   
+    color: black;
+    padding: 1rem 2.5rem;
+    /* border-bottom: 2px solid rgb(39, 198, 36); */
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+   
+}
