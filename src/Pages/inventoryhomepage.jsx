@@ -1,139 +1,76 @@
-import React, { useState } from 'react';
-import { Search, Trash2, SquarePen, X } from 'lucide-react';
-import '../styles/inventory.css';
-
-const AddProductModal = ({ isOpen, onClose, onSubmit }) => {
-  const [name, setName] = useState('');
-  const [category, setCategory] = useState('');
-  const [vendor, setVendor] = useState('');
-  const [quantity, setQuantity] = useState(0);
-  const [lowThreshold, setLowThreshold] = useState(0);
-  const [cost, setCost] = useState(0);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit({
-      name,
-      category,
-      vendor,
-      stock: quantity,
-      lowStockThreshold: lowThreshold,
-      cost
-    });
-    onClose();
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <button className="modal-close" onClick={onClose}>
-          <X />
-        </button>
-        <h1>Add New Product</h1>
-        <form onSubmit={handleSubmit} className="form-container">
-          <div className="form-group">
-            <label htmlFor="name">Name</label>
-            <input
-              type="text"
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="category">Category</label>
-            <select
-              id="category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              required
-            >
-              <option value="">Select category</option>
-              <option value="bathroom">Bathroom</option>
-              <option value="household">Household</option>
-              <option value="kitchen">Kitchen</option>
-              <option value="cleaning">Cleaning</option>
-            </select>
-          </div>
-          <div className="form-group">
-            <label htmlFor="vendor">Vendor</label>
-            <input
-              type="text"
-              id="vendor"
-              value={vendor}
-              onChange={(e) => setVendor(e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="quantity">Quantity</label>
-            <input
-              type="number"
-              id="quantity"
-              value={quantity}
-              onChange={(e) => setQuantity(parseInt(e.target.value))}
-              min="0"
-              step="1"
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="low-threshold">Quantity Threshold</label>
-            <input
-              type="number"
-              id="low-threshold"
-              value={lowThreshold}
-              onChange={(e) => setLowThreshold(parseInt(e.target.value))}
-              min="0"
-              step="1"
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="cost">Cost</label>
-            <input
-              type="number"
-              id="cost"
-              value={cost}
-              onChange={(e) => setCost(parseFloat(e.target.value))}
-              min="0"
-              step="0.01"
-              required
-            />
-          </div>
-          <button type="submit" className="save-button">
-            Save Product
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-};
+import React, { useState, useEffect } from 'react';
+import { Search, Trash2, SquarePen, X, ArrowUpDown } from 'lucide-react';
+import AddProductModal from './AddProductModal';
+import "../styles/inventory.css";
 
 const InventoryHomepage = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [data, setData] = useState([
-    {
-      name: 'Duraflame Fire Starter',
-      sku: '123-456-789',
-      vendor: 'Duraflame',
-      stock: 100,
-      lowStockThreshold: 10,
-      cost: 5.00
-    },
-    // ... other initial data
-  ]);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [data, setData] = useState(() => {
+    const savedData = localStorage.getItem('inventoryData');
+    return savedData ? JSON.parse(savedData) : [];
+  });
 
-  const filteredData = data.filter((item) =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+ 
+  const categories = ['', ...new Set(data.map(item => item.category))];
+
+ 
+  const processedData = data
+    .filter(item => 
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      (categoryFilter === '' || item.category === categoryFilter)
+    )
+    .sort((a, b) => {
+      if (!sortConfig.key) return 0;
+      
+      const valueA = a[sortConfig.key];
+      const valueB = b[sortConfig.key];
+
+      if (valueA < valueB) 
+        return sortConfig.direction === 'ascending' ? -1 : 1;
+      if (valueA > valueB) 
+        return sortConfig.direction === 'ascending' ? 1 : -1;
+      return 0;
+    });
+
+ 
+  useEffect(() => {
+    localStorage.setItem('inventoryData', JSON.stringify(data));
+  }, [data]);
+
+
+  const handleSort = (key) => {
+    let direction = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
 
   const handleAddProduct = (newProduct) => {
-    setData([...data, newProduct]);
+    if (editingProduct) {
+      setData(data.map(item => 
+        item.id === newProduct.id ? newProduct : item
+      ));
+    } else {
+      setData([...data, newProduct]);
+    }
+    setEditingProduct(null);
+  };
+
+
+  const handleEditProduct = (product) => {
+    setEditingProduct(product);
+    setIsModalOpen(true);
+  };
+
+
+  const handleDeleteProduct = (productId) => {
+    setData(data.filter(item => item.id !== productId));
   };
 
   return (
@@ -142,7 +79,10 @@ const InventoryHomepage = () => {
         <h1>Inventory Management System</h1>
         <button 
           className="add-button" 
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setEditingProduct(null);
+            setIsModalOpen(true);
+          }}
         >
           Add New Product
         </button>
@@ -150,11 +90,15 @@ const InventoryHomepage = () => {
       
       <AddProductModal 
         isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingProduct(null);
+        }}
         onSubmit={handleAddProduct}
+        initialData={editingProduct}
       />
 
-      <div className="search-container">
+      <div className="search-filter-container">
         <div className="search-input-wrapper">
           <Search className="search-icon" />
           <input
@@ -165,6 +109,19 @@ const InventoryHomepage = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+        
+        <div className="category-filter">
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+          >
+            {categories.map(cat => (
+              <option key={cat} value={cat}>
+                {cat ? ` ${cat}` : 'All Categories'}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
       
       <table className="inventory-table">
@@ -173,17 +130,20 @@ const InventoryHomepage = () => {
             <th>Product Name</th>
             <th>Category</th>
             <th>Vendor</th>
-            <th>Quantity</th>
-            <th>Quantity threshold</th>
+            <th onClick={() => handleSort('stock')}>
+              Quantity 
+              <ArrowUpDown color='green' className="sort-icon" />
+            </th>
+            <th>Quantity Threshold</th>
             <th>Cost</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {filteredData.map((item, index) => (
-            <tr key={index}>
+          {processedData.map((item) => (
+            <tr key={item.id}>
               <td className="name-cell">{item.name}</td>
-              <td>{item.sku}</td>
+              <td>{item.category}</td>
               <td>{item.vendor}</td>
               <td className={`stock-cell ${item.stock < item.lowStockThreshold ? 'low-stock' : ''}`}>
                 {item.stock}
@@ -191,8 +151,16 @@ const InventoryHomepage = () => {
               <td>{item.lowStockThreshold}</td>
               <td className="cost-cell">${item.cost.toFixed(2)}</td>
               <td className="actions-cell">
-                <SquarePen className="square-icon" />
-                <Trash2 className="delete-icon" />
+                <SquarePen 
+                  className="square-icon" 
+                  color='green'
+                  onClick={() => handleEditProduct(item)}
+                />
+                <Trash2 
+                  className="delete-icon" 
+                  color='green'
+                  onClick={() => handleDeleteProduct(item.id)}
+                />
               </td>
             </tr>
           ))}
