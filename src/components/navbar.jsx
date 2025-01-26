@@ -1,11 +1,12 @@
 import React from "react";
 import "../styles/navbar.css";
+import logo from "../assets/GyanGrove.svg"
 
 const navbar = () => {
   return (
     <>
     <div className="navbar"> 
-    <h1> ★ inventory.io</h1>
+    <img src= {logo} alt="GyanGrove"/>
 
     </div>
       
